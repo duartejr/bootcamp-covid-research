@@ -23,7 +23,7 @@ class TwitterOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.query = query
         self.file_path = file_path
-        self.conn_ind = conn_id
+        self.conn_id = conn_id
         self.start_time = start_time
         self.end_time = end_time
         self.country = country
@@ -34,7 +34,7 @@ class TwitterOperator(BaseOperator):
     def execute(self, context):
         hook = TwitterHook(
             query = self.query,
-            conn_id = self.conn_ind,
+            conn_id = self.conn_id,
             start_time = self.start_time,
             end_time = self.end_time,
             country = self.country
