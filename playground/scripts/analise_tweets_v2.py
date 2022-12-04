@@ -1,18 +1,23 @@
-# from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
 from pyspark.sql.window import Window
-import sparknlp
-from sparknlp.pretrained import PretrainedPipeline 
 from nltk.sentiment import SentimentIntensityAnalyzer
 from datetime import datetime
 from calendar import monthrange
 import pandas as pd
+import translators as ts
 
 year = 2020
-
-for month in range(7, 8):
-    if month == 7:
-        start_day = 2
+spark = SparkSession\
+        .builder\
+        .appName("twitter_sentimental_analysis")\
+        .getOrCreate()
+sentimental_analyser = SentimentIntensityAnalyzer()
+w = Window().orderBy(f.lit('A'))
+        
+for month in range(6, 7):
+    if month == 6:
+        start_day = 25
     else:
         start_day = 1
     
@@ -21,16 +26,13 @@ for month in range(7, 8):
     
     for day in range(start_day, end_day+1):
         print(day)
-        for country in ['AR', 'ES', 'MX', 'CL', 'EC']:
-            if month == 3 and day == 19 and country in ['AR', 'ES', 'MX']:
+        for country in ['MX']:
+            if month == 7 and day == 20 and country in ['AR', 'ES', 'MX', 'CL']:
                 continue
             print(country)
-            spark_nlp = sparknlp.start()
-            translator = PretrainedPipeline("translate_mul_en", lang = "xx")
-            sentimentl_analyser = SentimentIntensityAnalyzer()
-            w = Window().orderBy(f.lit('A'))
+            
             src = f'../../datalake/silver/twitter/covid/{country}'
-            df = spark_nlp.read.json(src)
+            df = spark.read.json(src)
             df = df.withColumn('date', 
                    df.created_at.substr(1, 10))
             df = df.withColumn('date', f.to_date(df.date))
@@ -56,10 +58,16 @@ for month in range(7, 8):
 
             print('len', df2.count())
             ans = []
+            i=0
             for tweet in df2.toPandas()['texto']:
-                ans.append(translator.annotate(tweet))
-            ans = spark_nlp.createDataFrame(ans)
-            ans = ans.withColumn('translation', f.concat_ws('', 'translation'))
+                ans.append({'translation': ts.google(tweet, to_language='en')})
+                print(i)
+                i+=1
+            # print(ans)
+            # print(type(ans))
+                
+            ans = spark.createDataFrame(ans)
+            # ans = ans.withColumn('translation', f.concat_ws('', 'translation'))
 
             df2 = df2.withColumn('row_id', f.row_number().over(w))
             ans = ans.withColumn('row_id', f.row_number().over(w))
@@ -69,10 +77,11 @@ for month in range(7, 8):
                      .drop('sentence')
 
             sentimentals = []
+            
             for tweet in df2.toPandas()['translation']:
-                sentimentals.append(sentimentl_analyser.polarity_scores(tweet))
+                sentimentals.append(sentimental_analyser.polarity_scores(tweet))
 
-            sentimentals = spark_nlp.createDataFrame(sentimentals)
+            sentimentals = spark.createDataFrame(sentimentals)
             sentimentals = sentimentals.withColumn('row_id', f.row_number().over(w))
 
             df2 = df2.join(sentimentals, on=['row_id'])
@@ -82,5 +91,5 @@ for month in range(7, 8):
             dest_csv = f'../../datalake/gold/twitter/sentimental_analysis/{country}/{date}.csv'
             df2.toPandas().to_csv(dest_csv, index=False)
             #del df2, sentimentals, ans
-            del df2, sentimentals, ans, text, df, sentimentl_analyser, translator
-            spark_nlp.stop()
+            # del df2, sentimentals, ans, text, df, sentimentl_analyser, translator
+spark.stop()
