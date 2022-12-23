@@ -61,7 +61,7 @@ if __name__ == "__main__":
                     query = "covid",
                     file_path = join(
                         "/mnt/d/bootcamp-covid/datalake/bronze",
-                        "twitter_bootcamp-covid",
+                        "twitter_covid",
                         country,
                         f"extract_date={ds_date}",
                         f"CovidTweets_{country}_{ds_date_nodash}.json"),
@@ -77,7 +77,3 @@ if __name__ == "__main__":
                 time.sleep(10)
             time.sleep(5)
         time.sleep(10)
-        # break
-        #         # time.sleep(5)
-                
-        #         #ti.run()

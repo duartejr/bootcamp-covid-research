@@ -19,7 +19,7 @@ TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.00Z"
 
 BASE_FOLDER = join(
     str(Path("/mnt/d/bootcamp-covid")),
-    "datalake/{stage}/twitter_covid/{partition}"
+    "datalake/{stage}/twitter_covid/{country}/{partition}"
 )
 PARTITION_FOLDER = "extract_data={{ ds }}"
 
@@ -32,12 +32,13 @@ with DAG(
     max_active_runs=1
     ) as dag:
     
-    
     twitter_operator = TwitterOperator(
         task_id="twitter_bootcamp-covid",
         query="covid",
         file_path=join(
-            BASE_FOLDER.format(stage="bronze", partition=PARTITION_FOLDER),
+            BASE_FOLDER.format(stage="bronze",
+                               country="cascata",
+                               partition=PARTITION_FOLDER),
             "CovidTweets_{{ ds_nodash }}.json"
         ),
         start_time=datetime.strftime(datetime.now() - timedelta(days=5), TIMESTAMP_FORMAT),
