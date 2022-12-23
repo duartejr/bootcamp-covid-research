@@ -1,4 +1,4 @@
-b# Bootcamp COVID
+# Bootcamp COVID
 
 ## Status: Em Andamento
 
