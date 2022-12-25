@@ -2,7 +2,7 @@ import json
 from os.path import join
 from pathlib import Path
 from datetime import datetime, timedelta
-from airflow.models import BaseOperator, DAG, TaskInstance
+from airflow.models import BaseOperator, DAG
 from airflow.utils.decorators import apply_defaults
 from hooks.twitter_hook import TwitterHook
 import pandas as pd
@@ -22,7 +22,7 @@ class TwitterOperator(BaseOperator):
     def __init__(self, query, file_path, conn_id=None, start_time=None, end_time=None, country=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.query = query
-        self.file_path = file_path
+        self.file_path = file_path  
         self.conn_id = conn_id
         self.start_time = start_time
         self.end_time = end_time
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                 to = TwitterOperator(
                     query = "covid",
                     file_path = join(
-                        "/mnt/d/bootcamp-covid/datalake/bronze",
+                        "/mnt/d/DATA/bootcamp-covid/datalake/bronze",
                         "twitter_covid",
                         country,
                         f"extract_date={ds_date}",

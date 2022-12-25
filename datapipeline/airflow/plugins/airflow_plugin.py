@@ -1,7 +1,7 @@
 from airflow.plugins_manager import AirflowPlugin
 from operators.twitter_operator import TwitterOperator
 
-class AluraAirflowPlugin(AirflowPlugin):
+class AirflowPlugin(AirflowPlugin):
     name = "bootcamp-covid"
     operators = [TwitterOperator]
     
