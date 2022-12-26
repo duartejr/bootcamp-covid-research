@@ -20,6 +20,9 @@ class CovidHook(HttpHook):
     def run(self):
         self.get_conn()
         url = self.create_url()
+        print("#"*100)
+        print(url)
+        print("#"*100)
         df = self.read_file(url)
         return df
         

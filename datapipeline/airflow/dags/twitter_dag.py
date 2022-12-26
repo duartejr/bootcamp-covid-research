@@ -19,7 +19,7 @@ BASE_FOLDER = join(str(Path("/mnt/d/bootcamp-covid")),
                    "datalake/{stage}/twitter/query_covid/{country}/{partition}")
 PARTITION_FOLDER = "extract_date={{ ds }}"
 
-countries = ["ES", "EC", "CL", "MX", "AR", "BR"]
+countries = ["ES", "EC", "CL", "MX", "AR"]
 
 def transform_twitter(**kwargs):
     src = kwargs["src"]
@@ -54,9 +54,9 @@ with DAG(dag_id          = "Twitter_dag",
                                                  country   = country,
                                                  partition = PARTITION_FOLDER),
                               "CovidTweets_{{ ds_nodash }}.json"),
-            start_time = datetime.strftime(datetime.now() - timedelta(days=1), 
+            start_time = datetime.strftime(datetime.now() - timedelta(days=2), 
                                            TIMESTAMP_FORMAT),
-            end_time   = datetime.strftime(datetime.now() - timedelta(days=0), 
+            end_time   = datetime.strftime(datetime.now() - timedelta(days=1), 
                                            TIMESTAMP_FORMAT),
             country    = country,
         )

@@ -1,12 +1,9 @@
-import pandas as pd
 from os.path import join
 from pathlib import Path
 from datetime import datetime, timedelta
-from airflow.models import BaseOperator, DAG
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from hooks.covid_hook import CovidHook
-import pandas as pd
-import time
 
 
 class CovidOperator(BaseOperator):
@@ -32,15 +29,16 @@ class CovidOperator(BaseOperator):
 
 
 if __name__ == "__main__":
-    # date = '01-01-2021'
-    date = datetime(2021, 1, 1)
-    ds_date = datetime.strftime(date, "%Y-%m-%d")
-    ds_date_nodash = datetime.strftime(date, '%Y%m%d')
-    # with DAG(dag_in="CovidTest", start_date=date) as dag:
-    operator = CovidOperator(file_path = join("/mnt/d/bootcamp-covid/datalake/bronze",
-                                            "covid_data",
-                                            f"extract_date={ds_date}",
-                                            f"CovidData_{ds_date_nodash}.csv"),
-                            date = datetime.strftime(date, "%d-%m-%Y"),
-                            task_id = "test_run")
-    operator.execute(None)
+    start_date = datetime(2021, 1, 1)
+    end_date = datetime(2022, 12, 25)
+    dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days)]
+    for date in dates:
+        ds_date = datetime.strftime(date, "%Y-%m-%d")
+        ds_date_nodash = datetime.strftime(date, '%Y%m%d')
+        operator = CovidOperator(file_path = join("/mnt/d/bootcamp-covid/datalake/bronze",
+                                                "covid_data",
+                                                f"extract_date={ds_date}",
+                                                f"CovidData_{ds_date_nodash}.csv"),
+                                date = datetime.strftime(date, "%m-%d-%Y"),
+                                task_id = "test_run")
+        operator.execute(None)
