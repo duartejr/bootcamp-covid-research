@@ -25,6 +25,7 @@ class CovidOperator(BaseOperator):
                          date = self.date)
         self.create_parent_folder()
         df = hook.run()
+        df['date'] = self.date
         df.to_csv(self.file_path, index=False)
 
 
