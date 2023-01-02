@@ -1,19 +1,19 @@
 import sys
 import shutil
 import pandas as pd
-from datetime import datetime
 from os.path import join, exists
-from pyspark.sql import SparkSession, Row
 from pyspark.sql import functions as f
+from pyspark.sql import SparkSession, Row
 from statsmodels.tsa.arima.model import ARIMAResults
 from pyspark.sql.types import StructType, StructField, DateType, FloatType
+
 
 def forecast(obs_data, src_model, fcst_horizon=7):
     model = ARIMAResults.load(src_model)
     obs_data = obs_data.toPandas()
     if len(obs_data) > 150:
         obs_data = obs_data.iloc[len(obs_data)-150:]
-    obs_data = obs_data.set_index("Date")
+    obs_data = obs_data.set_index("date")
     model = model.apply(obs_data)
     model = model.apply(obs_data)
     fcst = model.forecast(fcst_horizon)
@@ -31,15 +31,15 @@ def save(spark, df, dest):
         df = df.union(df_old).toPandas()
         shutil.rmtree(dest)
         df = spark.createDataFrame(df)
+        df = df.dropDuplicates()
     df.coalesce(1).write.parquet(dest)
     
-
 def read_data(spark, src):
     df = spark.read.parquet(src)
     return df
 
 def select_data(df, col):
-    return df.select([f.col("Date"), f.col(col)])
+    return df.select([f.col("date"), f.col(col)])
 
 def pd_to_spark(spark, df):
     content = df.values.tolist()[0]
@@ -69,17 +69,18 @@ def pd_to_spark(spark, df):
     df = spark.createDataFrame(data, schema)
     return df
     
-
-def execute(spark, src, dest, country, fcst_horizon=7, col="New cases"):
+def execute(spark, src, dest, country, fcst_horizon=7, col="New_Confirmed"):
     src = join(src, f'{country}.parquet')
     dest = join(dest, f'{country}.parquet')
-    src_model = f'/mnt/d/bootcamp-covid/model/arima_{country}.pkl'
-    df = read_data(spark, src)
-    df = select_data(df, col)
-    fcst = forecast(df, src_model, fcst_horizon=fcst_horizon)
-    fcst = pd_to_spark(spark, fcst)
-    save(spark, fcst, dest)
-    return fcst
+    if exists(src):
+        src_model = f'/mnt/d/bootcamp-covid/model/arima_{country}.pkl'
+        df = read_data(spark, src)
+        df = select_data(df, col)
+        fcst = forecast(df, src_model, fcst_horizon=fcst_horizon)
+        fcst = pd_to_spark(spark, fcst)
+        save(spark, fcst, dest)
+        print('dest_forecast:', dest)
+
 
 if __name__ == "__main__":
     src = sys.argv[1]
@@ -98,4 +99,3 @@ if __name__ == "__main__":
         execute(spark, src, dest, countries)
     
     spark.stop()
-

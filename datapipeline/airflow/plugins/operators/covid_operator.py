@@ -30,10 +30,11 @@ class CovidOperator(BaseOperator):
 
 
 if __name__ == "__main__":
-    start_date = datetime(2021, 1, 1)
-    end_date = datetime(2022, 12, 25)
+    start_date = datetime(2022, 12, 31)
+    end_date = datetime(2023, 1, 1)
     dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days)]
     for date in dates:
+        print(date)
         ds_date = datetime.strftime(date, "%Y-%m-%d")
         ds_date_nodash = datetime.strftime(date, '%Y%m%d')
         operator = CovidOperator(file_path = join("/mnt/d/bootcamp-covid/datalake/bronze",
