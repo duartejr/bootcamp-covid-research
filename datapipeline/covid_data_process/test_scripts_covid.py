@@ -16,8 +16,10 @@ BASE_FOLDER = join(str(Path("/mnt/d/bootcamp-covid")),
                        "datalake/{stage}/covid_data/{partition}")
 EXTRACT_DATE = dt.now() - timedelta(days=1)
 PARTITION_FOLDER = f"extract_date={dt.strftime(EXTRACT_DATE, '%Y-%m-%d')}"
-COUNTRIES = "Spain,Ecuador,Chile,Mexico,Argentina"
-COUNTRIES_ABRV = "ES,EC,CH,MX,AR"
+COUNTRIES = "Spain,Chile,Mexico,Argentina"
+COUNTRIES_ABRV = "ES,CH,MX,AR"
+COUNTRIES = ["Ecuador"]
+COUNTRIES_ABRV = ["EC"]
 dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days)]
 spark = SparkSession\
             .builder\
@@ -36,9 +38,9 @@ for date in dates:
     print(extract_date)
     print('Transforming data:')
     print('src_transform:', src_transform)
-    for i, country in enumerate(COUNTRIES.split(",")):
+    for i, country in enumerate(COUNTRIES):
         print(country)
-        country_abrv = COUNTRIES_ABRV.split(",")[i]
+        country_abrv = COUNTRIES_ABRV[i]
         covid_data_transformation.execute(spark, src_transform, dest_transform,
                                           country, country_abrv)
         

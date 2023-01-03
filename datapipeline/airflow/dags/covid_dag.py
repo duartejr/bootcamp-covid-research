@@ -71,7 +71,7 @@ with DAG(dag_id          = "Covid_dag",
                                                        partition = "time_series"),
                            "extract_date" : dt.strftime(EXTRACT_DATE, '%Y-%m-%d'),
                            "countries": COUNTRIES,
-                           "countries_abr": COUNTRIES_ABRV}
+                           "countries_abrv": COUNTRIES_ABRV}
     )
     
     covid_calc_fields   = PythonOperator(
