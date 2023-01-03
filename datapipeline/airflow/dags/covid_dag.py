@@ -49,6 +49,15 @@ def forecast_covid_cases(**kwargs):
                     src, dest, countries])
     
 
+def export_csv(**kwargs):
+    src       = kwargs["src"]
+    dest      = kwargs["dest"]
+    countries = kwargs["countries"]
+    subprocess.run(["python",
+                    "/mnt/d/bootcamp-covi/datapipeline/covid_data_process/covid_export_csv.py",
+                    src, dest, countries])    
+    
+
 with DAG(dag_id          = "Covid_dag",
          default_args    = ARGS,
          max_active_runs = 1) as dag:
@@ -96,4 +105,15 @@ with DAG(dag_id          = "Covid_dag",
                             "countries": COUNTRIES_ABRV}
     )
     
-    covid_operator >> covid_time_series >> covid_calc_fields >> covid_cases_forecast
+    covid_export_csv = PythonOperator(
+        task_id          = "covid_export_csv",
+        python_callable  = export_csv,
+        op_args          = [],
+        op_kwargs        = {"src": BASE_FOLDER.format(stage      = "silver",
+                                                      partition  = "forecast"),
+                            "dest": BASE_FOLDER.format(stage     = "gold",
+                                                       partition = "forecast/arima"),
+                            "countries": COUNTRIES_ABRV}
+    )
+    
+    covid_operator >> covid_time_series >> covid_calc_fields >> covid_cases_forecast >> covid_export_csv
