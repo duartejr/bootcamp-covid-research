@@ -22,13 +22,19 @@ def order_columns(df):
 
 def execute(spark, src, dest, countries):
     
-    for country in countries:
+    for i, country in enumerate(countries):
         src_data = join(src, f'{country}.parquet')
         dest_data = join(dest, f'arima_{country}.csv')
         df = read_data(spark, src_data)
         df = df.withColumn("country", f.lit(country))
         df = order_columns(df)
         save(df, dest_data)
+        if i == 0:
+            df_tot = df
+        else:
+            df_tot = df_tot.join(df)
+    dest_data_tot = join(dest, 'arima_all.csv')
+    save(df_tot, dest_data_tot)
 
 if __name__ == "__main__":
     src = sys.argv[1]
