@@ -37,15 +37,6 @@ def sentiment_analysis(df, w):
     df2 = df.join(sentiments, on=['row_id'])
     return df2
 
-# def create_date_column(df):
-#     df = df.withColumn('date',
-#                        df.created_at.substr(1, 10))
-#     df = df.withColumn('date', f.to_date(df.date))
-#     df2 = df.filter(f.col("date")\
-#                      .between(pd.to_datetime(f'{year}-{month}-{day}'),
-#                               pd.to_datetime(f'{year}-{month}-{day}')))
-#     return df2
-
 
 def prep_text(df):
     text = df.select('created_at', 
@@ -53,9 +44,8 @@ def prep_text(df):
                                       "[^A-Za-z0-9À-ÿ\-\ @#-]", "")\
                       .alias("texto"))
     df2 = df.join(text, on=['created_at'])\
-            .drop('created_at')\
-            .drop('text')\
-            .drop('process_date')
+            .drop('text')#\
+            #.drop('process_date')
     return df2
 
 
@@ -63,15 +53,16 @@ def export_json(df, dest):
     df.coalesce(1).write.mode('overwrite').json(dest)
 
 
-def tweet_sentiment_analysis(spark, window, src, dest, process_date, table_name):
+def tweet_sentiment_analysis(spark, window, src, dest, process_date):
+    src = join(src, f"process_date={process_date}")
     df = spark.read.json(src)
-    # df2 = create_date_column(df)
             
     if df.rdd.isEmpty():
         return None
     
     df = sentiment_analysis(translate(prep_text(df), window), window)
-    table_dest = join(dest, table_name, f"process_date={process_date}")
+    df = df.withColumnRenamed("created_at", "date")
+    table_dest = join(dest, f"process_date={process_date}")
     export_json(df, table_dest)
     
 
@@ -79,7 +70,6 @@ if __name__ == "__main__":
     src = sys.argv[1]
     dest = sys.argv[2]
     process_date = sys.argv[3]
-    table_name = sys.argv[4]
     
     spark = SparkSession\
             .builder\
@@ -87,6 +77,6 @@ if __name__ == "__main__":
             .getOrCreate()
     window = Window().orderBy(f.lit('A'))
 
-    tweet_sentiment_analysis(spark, window, src, dest, process_date, table_name)
+    tweet_sentiment_analysis(spark, window, src, dest, process_date)
     spark.stop()
     

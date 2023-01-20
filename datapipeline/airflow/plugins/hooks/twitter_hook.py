@@ -64,6 +64,7 @@ class TwitterHook(HttpHook):
     def run(self):
         session = self.get_conn()
         url = self.create_url()
+        # return self.connect_to_endpoint(url, session)
         yield from self.paginate(url, session)
 
 

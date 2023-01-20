@@ -2,7 +2,7 @@ import sys
 import shutil
 import numpy
 import pandas as pd
-from datetime import timedelta
+from datetime import datetime, timedelta
 from os.path import join, exists
 from pyspark.sql import functions as f
 from pyspark.sql import SparkSession, Row
@@ -16,6 +16,7 @@ def forecast(obs_data, src_model, fcst_horizon=7, format_BI=True, fcst_date=None
     obs_data = obs_data.set_index("date")
     
     if fcst_date:
+        fcst_date = datetime.strptime(fcst_date, '%Y-%m-%d').date()
         obs_data = obs_data.loc[:fcst_date]
 
     if len(obs_data) > 150:
@@ -109,6 +110,7 @@ if __name__ == "__main__":
     src = sys.argv[1]
     dest = sys.argv[2]
     countries = sys.argv[3]
+    fcst_date = sys.argv[4]
     
     spark = SparkSession\
                 .builder\
@@ -117,8 +119,8 @@ if __name__ == "__main__":
     
     if ',' in countries:
         for country in countries.split(','):
-            execute(spark, src, dest, country)
+            execute(spark, src, dest, country, fcst_date=fcst_date)
     else:
-        execute(spark, src, dest, countries)
+        execute(spark, src, dest, countries, fcst_date=fcst_date)
     
     spark.stop()

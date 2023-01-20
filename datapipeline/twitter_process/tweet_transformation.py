@@ -7,8 +7,7 @@ def get_tweets_data(df, date_limit):
     return df.select(f.explode("data").alias("tweets"))\
              .select("tweets.author_id",
                      "tweets.created_at",
-                     "tweets.text")\
-             .filter(f.col("created_at") < f.lit(date_limit))
+                     "tweets.text")
 
 def get_user_data(df):
     return df.select(f.explode("includes.users").alias("users"))\

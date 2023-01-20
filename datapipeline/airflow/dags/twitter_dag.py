@@ -8,18 +8,20 @@ from airflow.operators.python_operator import PythonOperator
 import subprocess
 from airflow.utils.dates import days_ago
 from datetime import datetime, timedelta
+import time
+
 
 ARGS = {"owner"          : "airflow",
         "depends_on_past": False,
         "start_date"     : days_ago(1)}
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.00Z"
-
+START_DATE = datetime.today() - timedelta(1)
 BASE_FOLDER = join(str(Path("/mnt/d/bootcamp-covid")),
                    "datalake/{stage}/twitter/query_covid/{country}/{partition}")
-PARTITION_FOLDER = "extract_date={{ ds }}"
+PARTITION_FOLDER = "extract_date={}".format(datetime.strftime(START_DATE , '%Y-%m-%d'))
+countries = ["CL", "AR", "MX", "EC", "ES"]
 
-countries = ["ES", "EC", "CL", "MX", "AR"]
 
 def transform_twitter(**kwargs):
     src = kwargs["src"]
@@ -34,18 +36,61 @@ def sentimental_analysis(**kwargs):
     src = kwargs["src"]
     dest = kwargs["dest"]
     process_date = kwargs["process_date"]
-    table_name = kwargs["table_name"]
     subprocess.run(["python",
                     "/mnt/d/bootcamp-covid/datapipeline/twitter_process/tweet_sentimental_analysis.py",
-                    src, dest, process_date, table_name])
+                    src, dest, process_date])
+
+def export_csv(**kwargs):
+    src = kwargs["src"]
+    dest = kwargs["dest"]
+    countries = kwargs["countries"]
+    subprocess.run(["python",
+                    "/mnt/d/bootcamp-covid/datapipeline/twitter_process/tweet_export_csv.py",
+                    src, dest, countries])
+
+def export_sql(**kwargs):
+    src       = kwargs["src"]
+    table     = kwargs["table"]
     
+    if "extract_date" in kwargs.keys():
+        extract_date = kwargs["extract_date"]
+    else:
+        extract_date = None
+
+    if forecast_date:
+        subprocess.run(["python",
+                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        src, table, extract_date])
+    else:
+        subprocess.run(["python",
+                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        src, table]) 
 
 with DAG(dag_id          = "Twitter_dag",
          default_args    = ARGS,
-         #schedule_interval="0 9 * * *", #padrao CRON minutos horas dias meses diasdasemana
+         schedule_interval="0 3 * * *", #padrao CRON minutos horas dias meses diasdasemana
          max_active_runs = 1
          ) as dag:
     
+    twitter_export_csv = PythonOperator(
+            task_id         = "twitter_export_csv",
+            python_callable = export_csv,
+            op_args         = [],
+            op_kwargs       = {"src": "/mnt/d/bootcamp-covid/datalake/silver/twitter/sentiment_analysis",
+                               "dest": "/mnt/d/bootcamp-covid/datalake/gold/twitter/sentiment_analysis",
+                               "countries": ",".join(countries)}
+        )
+
+    twitter_export_sql = PythonOperator(
+            task_id         = "twitter_export_sql",
+            python_callable = export_sql,
+            op_args         = [],
+            op_kwargs       = {"src":  "/mnt/d/bootcamp-covid/datalake/gold/twitter/sentiment_analysis",
+                               "extract_date": datetime.strftime(START_DATE, '%Y-%m-%d'),
+                               "table": "SENTIMENTOS"}
+        )
+
+
     for country in countries:
         twitter_operator = TwitterOperator(
             task_id    = "twitter_covid_" + country,
@@ -53,13 +98,12 @@ with DAG(dag_id          = "Twitter_dag",
             file_path  = join(BASE_FOLDER.format(stage     = "bronze",
                                                  country   = country,
                                                  partition = PARTITION_FOLDER),
-                              "CovidTweets_{{ ds_nodash }}.json"),
-            start_time = datetime.strftime(datetime.now() - timedelta(days=2), 
-                                           TIMESTAMP_FORMAT),
-            end_time   = datetime.strftime(datetime.now() - timedelta(days=1), 
-                                           TIMESTAMP_FORMAT),
+                              "CovidTweets_{}.json".format(datetime.strftime(START_DATE, "%Y%m%d"))),
+            start_time = datetime.strftime(START_DATE, "%Y-%m-%dT00:00:00.00Z"),
+            end_time   = datetime.strftime(START_DATE, "%Y-%m-%dT23:59:59.00Z"),
             country    = country,
         )
+
 
         twitter_transform = PythonOperator(
             task_id         = "twitter_transform_" + country,
@@ -71,7 +115,7 @@ with DAG(dag_id          = "Twitter_dag",
                                "dest" : BASE_FOLDER.format(stage     = "silver",
                                                            country   = country,
                                                            partition = ""),
-                               "process_date" : "{{ ds }}",
+                               "process_date" : datetime.strftime(START_DATE , '%Y-%m-%d'),
                                "table_name": "tweet_processed"}
         )
         
@@ -82,11 +126,8 @@ with DAG(dag_id          = "Twitter_dag",
             op_kwargs       = {"src": BASE_FOLDER.format(stage      = "silver",
                                                          country    = country,
                                                          partition  = "tweet_processed"),
-                               "dest": BASE_FOLDER.format(stage     = "silver",
-                                                          country   = country,
-                                                          partition = ""),
-                               "process_date": "{{ ds }}",
-                               "table_name": "tweet_sentiments"}
+                               "dest": f"/mnt/d/bootcamp-covid/datalake/silver/twitter/sentiment_analysis/{country}",
+                               "process_date": datetime.strftime(START_DATE , '%Y-%m-%d')}
         )
 
-        twitter_operator >> twitter_transform >> twitter_sentiments_analysis
+        twitter_operator >> twitter_transform >> twitter_sentiments_analysis >> twitter_export_csv >> twitter_export_sql

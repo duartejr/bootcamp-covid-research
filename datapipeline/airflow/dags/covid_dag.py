@@ -14,7 +14,7 @@ ARGS             = {"owner"           : "airflow",
 TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.00Z'
 BASE_FOLDER      = join(str(Path("/mnt/d/bootcamp-covid")),
                                  "datalake/{stage}/covid_data/{partition}")
-EXTRACT_DATE     = dt.now() - timedelta(days=1)
+EXTRACT_DATE     = dt.today()# - timedelta(days=1)
 PARTITION_FOLDER = f"extract_date={dt.strftime(EXTRACT_DATE, '%Y-%m-%d')}"
 COUNTRIES        = "Spain,Ecuador,Chile,Mexico,Argentina"
 COUNTRIES_ABRV   = "ES,EC,CH,MX,AR"
@@ -36,7 +36,7 @@ def calc_covid_fields(**kwargs):
     dest      = kwargs["dest"]
     countries = kwargs["countries"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covi/datapipeline/covid_data_process/covid_data_calc_fields.py",
+                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_data_calc_fields.py",
                     src, dest, countries])
 
 
@@ -45,17 +45,36 @@ def forecast_covid_cases(**kwargs):
     dest      = kwargs["dest"]
     countries = kwargs["countries"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covi/datapipeline/covid_data_process/covid_cases_forecast.py",
-                    src, dest, countries])
+                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_cases_forecast.py",
+                    src, dest, countries, ""])
     
 
 def export_csv(**kwargs):
     src       = kwargs["src"]
     dest      = kwargs["dest"]
     countries = kwargs["countries"]
+    table     = kwargs["table"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covi/datapipeline/covid_data_process/covid_export_csv.py",
-                    src, dest, countries])    
+                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_export_csv.py",
+                    src, dest, countries, table])
+
+def export_fcst_sql(**kwargs):
+    src       = kwargs["src"]
+    table     = kwargs["table"]
+    
+    if "extract_date" in kwargs.keys():
+        extract_date = kwargs["extract_date"]
+    else:
+        extract_date = None
+
+    if forecast_date:
+        subprocess.run(["python",
+                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        src, table, extract_date])
+    else:
+        subprocess.run(["python",
+                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        src, table]) 
     
 
 with DAG(dag_id          = "Covid_dag",
@@ -105,15 +124,51 @@ with DAG(dag_id          = "Covid_dag",
                             "countries": COUNTRIES_ABRV}
     )
     
-    covid_export_csv = PythonOperator(
-        task_id          = "covid_export_csv",
+    covid_export_fcst_csv = PythonOperator(
+        task_id          = "covid_export_fcst_csv",
         python_callable  = export_csv,
         op_args          = [],
         op_kwargs        = {"src": BASE_FOLDER.format(stage      = "silver",
                                                       partition  = "forecast"),
                             "dest": BASE_FOLDER.format(stage     = "gold",
                                                        partition = "forecast/arima"),
-                            "countries": COUNTRIES_ABRV}
+                            "countries": COUNTRIES_ABRV,
+                            "table": "forecast"}
+    )
+
+    covid_export_jhons_csv = PythonOperator(
+        task_id          = "covid_export_jhons_csv",
+        python_callable  = export_csv,
+        op_args          = [],
+        op_kwargs        = {"src": BASE_FOLDER.format(stage      = "silver",
+                                                      partition  = "series_with_calc_fields"),
+                            "dest": BASE_FOLDER.format(stage     = "gold",
+                                                       partition = "jhons_hopkins"),
+                            "countries": COUNTRIES_ABRV,
+                            "table": "jhons_hopkins"}
+    )
+
+    covid_export_forecast_sql = PythonOperator(
+        task_id          = "covid_export_forecast_sql",
+        python_callable  = export_fcst_sql,
+        op_args          = [], 
+        op_kwargs        = {"src": BASE_FOLDER.format(stage      = "gold",
+                                                      partition  = "forecast/arima"),
+                            "table": "PREVISAO_CASOS",
+                            "extract_date": datetime.strftime(EXTRACT_DATE, '%Y-%m-%d'),}
+    )
+
+    covid_export_jhons_sql = PythonOperator(
+        task_id          = "covid_export_jhons_sql",
+        python_callable  = export_fcst_sql,
+        op_args          = [], 
+        op_kwargs        = {"src": BASE_FOLDER.format(stage      = "gold",
+                                                      partition  = "jhons_hopkins"),
+                            "table": "COVID_JHONS_HOPKINS",
+                            "extract_date": datetime.strftime(EXTRACT_DATE, '%Y-%m-%d')}
     )
     
-    covid_operator >> covid_time_series >> covid_calc_fields >> covid_cases_forecast >> covid_export_csv
+    covid_operator >> covid_time_series >> covid_calc_fields 
+    covid_calc_fields >> covid_export_jhons_csv >> covid_export_jhons_sql
+    covid_calc_fields >> covid_cases_forecast >> covid_export_fcst_csv
+    covid_export_fcst_csv >> covid_export_forecast_sql

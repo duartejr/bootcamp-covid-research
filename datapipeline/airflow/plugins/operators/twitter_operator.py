@@ -44,6 +44,10 @@ class TwitterOperator(BaseOperator):
             for pg in hook.run():
                 json.dump(pg, output_file, ensure_ascii=False)
                 output_file.write("\n")
+                time.sleep(5)
+            # pg = hook.run()
+            # json.dump(pg, output_file, ensure_ascii=False)
+            # output_file.write("\n")
 
 if __name__ == "__main__":
     start_date = '2019-1-1'
@@ -60,7 +64,7 @@ if __name__ == "__main__":
                 to = TwitterOperator(
                     query = "covid",
                     file_path = join(
-                        "/mnt/d/DATA/bootcamp-covid/datalake/bronze",
+                        "/mnt/d/bootcamp-covid/datalake/bronze",
                         "twitter_covid",
                         country,
                         f"extract_date={ds_date}",
