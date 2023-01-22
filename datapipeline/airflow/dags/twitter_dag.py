@@ -68,7 +68,7 @@ def export_sql(**kwargs):
 
 with DAG(dag_id          = "Twitter_dag",
          default_args    = ARGS,
-         schedule_interval="0 3 * * *", #padrao CRON minutos horas dias meses diasdasemana
+         schedule_interval='0 1 * * *',
          max_active_runs = 1
          ) as dag:
     

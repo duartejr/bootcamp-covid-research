@@ -44,6 +44,7 @@ def export_sql(**kwargs):
 
 with DAG(dag_id = 'dag_worldometer', 
 	     catchup=False,
+         schedule_interval='0 21 * * *',
 	     start_date = datetime.today()) as dag:
 
 	get_worldometer_data = PythonOperator(

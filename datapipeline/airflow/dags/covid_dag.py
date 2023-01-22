@@ -7,13 +7,17 @@ from datetime import datetime as dt
 from airflow.utils.dates import days_ago
 from operators.covid_operator import CovidOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.models import Variable
+
+dir_covid_scripts = Variable.get("dir_covid_scripts")
+dir_sql_scripts = Variable.get("dir_sql_scripts")
+dir_datalake = Variable.get("dir_datalake")
 
 ARGS             = {"owner"           : "airflow",
                     "depends_on_past" : False,
                     "start_date"      : days_ago(1)}
 TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.00Z'
-BASE_FOLDER      = join(str(Path("/mnt/d/bootcamp-covid")),
-                                 "datalake/{stage}/covid_data/{partition}")
+BASE_FOLDER      = join(dir_datalake, "{stage}/covid_data/{partition}")
 EXTRACT_DATE     = dt.today()# - timedelta(days=1)
 PARTITION_FOLDER = f"extract_date={dt.strftime(EXTRACT_DATE, '%Y-%m-%d')}"
 COUNTRIES        = "Spain,Ecuador,Chile,Mexico,Argentina"
@@ -27,7 +31,7 @@ def transform_covid_data(**kwargs):
     countries      = kwargs["countries"]
     countries_abrv = kwargs["countries_abrv"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_data_transformation.py",
+                    f"{dir_covid_scripts}/covid_data_transformation.py",
                     src, dest, extract_date, countries, countries_abrv])
 
 
@@ -36,7 +40,7 @@ def calc_covid_fields(**kwargs):
     dest      = kwargs["dest"]
     countries = kwargs["countries"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_data_calc_fields.py",
+                    f"{dir_covid_scripts}/covid_data_calc_fields.py",
                     src, dest, countries])
 
 
@@ -45,7 +49,7 @@ def forecast_covid_cases(**kwargs):
     dest      = kwargs["dest"]
     countries = kwargs["countries"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_cases_forecast.py",
+                    f"{dir_covid_scripts}/covid_cases_forecast.py",
                     src, dest, countries, ""])
     
 
@@ -55,7 +59,7 @@ def export_csv(**kwargs):
     countries = kwargs["countries"]
     table     = kwargs["table"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/covid_data_process/covid_export_csv.py",
+                    f"{dir_covid_scripts}/covid_export_csv.py",
                     src, dest, countries, table])
 
 def export_fcst_sql(**kwargs):
@@ -67,18 +71,19 @@ def export_fcst_sql(**kwargs):
     else:
         extract_date = None
 
-    if forecast_date:
+    if extract_date:
         subprocess.run(["python",
-                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        f"{dir_sql_scripts}/insert_into_forecast_table.py",
                         src, table, extract_date])
     else:
         subprocess.run(["python",
-                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        f"{dir_sql_scripts}/insert_into_forecast_table.py",
                         src, table]) 
     
 
 with DAG(dag_id          = "Covid_dag",
          default_args    = ARGS,
+         schedule_interval='0 21 * * *',
          max_active_runs = 1) as dag:
     
     covid_operator = CovidOperator(
@@ -155,7 +160,7 @@ with DAG(dag_id          = "Covid_dag",
         op_kwargs        = {"src": BASE_FOLDER.format(stage      = "gold",
                                                       partition  = "forecast/arima"),
                             "table": "PREVISAO_CASOS",
-                            "extract_date": datetime.strftime(EXTRACT_DATE, '%Y-%m-%d'),}
+                            "extract_date": dt.strftime(EXTRACT_DATE, '%Y-%m-%d'),}
     )
 
     covid_export_jhons_sql = PythonOperator(
@@ -165,7 +170,7 @@ with DAG(dag_id          = "Covid_dag",
         op_kwargs        = {"src": BASE_FOLDER.format(stage      = "gold",
                                                       partition  = "jhons_hopkins"),
                             "table": "COVID_JHONS_HOPKINS",
-                            "extract_date": datetime.strftime(EXTRACT_DATE, '%Y-%m-%d')}
+                            "extract_date": dt.strftime(EXTRACT_DATE, '%Y-%m-%d')}
     )
     
     covid_operator >> covid_time_series >> covid_calc_fields 
