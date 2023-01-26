@@ -23,22 +23,28 @@ def forecast(obs_data, src_model, fcst_horizon=7, format_BI=True, fcst_date=None
         obs_data = obs_data.iloc[len(obs_data)-150:]
     
     model = model.apply(obs_data)
-    fcst = model.forecast(fcst_horizon)
+    fcst = model.get_forecast(fcst_horizon).summary_frame()
+    
     if format_BI:
-        fcst = fcst.to_frame().reset_index()
+        fcst = fcst.reset_index()
+        fcst = fcst.drop(columns='mean_se')
         fcst['forecast_date'] = obs_data.index[-1]
-        fcst.columns = ['forecasted_date', 'forecast', 'forecast_date']
-        fcst = fcst[['forecast_date', 'forecasted_date', 'forecast']]
+        fcst.columns = ['forecasted_date', 'forecast', 'mean_ci_lower',
+                        'mean_ci_upper', 'forecast_date']
+        fcst = fcst[['forecast_date', 'forecasted_date', 'forecast',
+                     'mean_ci_lower', 'mean_ci_upper']]
+        
         if type(fcst.forecasted_date[0]) == numpy.int64:
             forecasted_dates = [fcst.forecast_date[i] + timedelta(days=i+1) for i in range(len(fcst))]
             fcst['forecasted_date'] = forecasted_dates
     else:
-        fcst = fcst.values[:]
+        fcst = fcst.mean.values[:]
         total_fcst = fcst.sum()
         fcst = [obs_data.index[-1]] + list(fcst) + [total_fcst]
         horizons = [f'd{i}' for i in range(1, fcst_horizon+1)]
         fcst = pd.DataFrame(fcst).T
         fcst.columns = ['forecast_date'] + horizons + ['total']
+        
     return fcst
 
 def save(spark, df, dest):
@@ -101,9 +107,9 @@ def execute(spark, src, dest, country, fcst_horizon=7, col="New_Confirmed",
                         fcst_date=fcst_date,
                         format_BI=format_BI)
         fcst = pd_to_spark(spark, fcst)
-        print(fcst)
+        # print(fcst)
         save(spark, fcst, dest)
-        print('dest_forecast:', dest)
+        # print('dest_forecast:', dest)
 
 
 if __name__ == "__main__":

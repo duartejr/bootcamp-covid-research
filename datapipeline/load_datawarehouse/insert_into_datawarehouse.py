@@ -2,7 +2,6 @@ from datetime import datetime
 import mysql.connector as mysql
 from mysql.connector import Error
 import pandas as pd
-import os
 import sys
 from airflow.models import Variable
 
@@ -69,8 +68,8 @@ def execute(src, table, forecast_date=None):
 		sql_query = f"INSERT INTO datawarehouse.{table}(`calendario_data`, `paises_id`, `tweet`, `negativo`, `positivo`, `neutro`, `composto`) VALUES (%s, %s, %s, %s, %s, %s, %s)"
 		base_folder = 'tweet_sentiments'
 	if table == "COVID_WORLDOMETER":
-		columns = '(`paises_id`, `calendario_data`, `populacao`, `total_casos`, `novos_casos`, `total_mortes`, `novas_mortes`, `total_recuperados`, `novos_recuperados`, `casos_ativos`, `casos_criticos`, `total_casos_1Mpop`, `total_mortes_1Mpop`, `total_testes`, `total_testes_1Mpop`)'
-		sql_query = f"INSERT INTO datawarehouse.{table}{columns} VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+		columns = '(`paises_id`, `calendario_data`, `populacao`, `total_casos`, `novos_casos`, `total_mortes`, `novas_mortes`, `total_recuperados`, `novos_recuperados`, `casos_ativos`, `casos_criticos`, `total_casos_1Mpop`, `total_mortes_1Mpop`, `total_testes`, `total_testes_1Mpop`, `mortalidade`)'
+		sql_query = f"INSERT INTO datawarehouse.{table}{columns} VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
 		base_folder = 'worldometer'
 	
 	fill_table(src, table, sql_query, forecast_date, base_folder)

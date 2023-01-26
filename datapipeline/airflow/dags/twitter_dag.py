@@ -9,6 +9,11 @@ import subprocess
 from airflow.utils.dates import days_ago
 from datetime import datetime, timedelta
 import time
+from airflow.models import Variable
+
+dir_twitter_scripts = Variable.get("dir_twitter_scripts")
+dir_sql_scripts = Variable.get("dir_sql_scripts")
+dir_datalake = Variable.get("dir_datalake")
 
 
 ARGS = {"owner"          : "airflow",
@@ -17,8 +22,8 @@ ARGS = {"owner"          : "airflow",
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.00Z"
 START_DATE = datetime.today() - timedelta(1)
-BASE_FOLDER = join(str(Path("/mnt/d/bootcamp-covid")),
-                   "datalake/{stage}/twitter/query_covid/{country}/{partition}")
+BASE_FOLDER = join(dir_datalake,
+                   "{stage}/twitter/query_covid/{country}/{partition}")
 PARTITION_FOLDER = "extract_date={}".format(datetime.strftime(START_DATE , '%Y-%m-%d'))
 countries = ["CL", "AR", "MX", "EC", "ES"]
 
@@ -29,7 +34,7 @@ def transform_twitter(**kwargs):
     process_date = kwargs["process_date"]
     table_name = kwargs["table_name"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/twitter_process/tweet_transformation.py",
+                    f"{dir_twitter_scripts}/tweet_transformation.py",
                     src, dest, process_date, table_name])
 
 def sentimental_analysis(**kwargs):
@@ -37,7 +42,7 @@ def sentimental_analysis(**kwargs):
     dest = kwargs["dest"]
     process_date = kwargs["process_date"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/twitter_process/tweet_sentimental_analysis.py",
+                    f"{dir_twitter_scripts}/tweet_sentimental_analysis.py",
                     src, dest, process_date])
 
 def export_csv(**kwargs):
@@ -45,7 +50,7 @@ def export_csv(**kwargs):
     dest = kwargs["dest"]
     countries = kwargs["countries"]
     subprocess.run(["python",
-                    "/mnt/d/bootcamp-covid/datapipeline/twitter_process/tweet_export_csv.py",
+                    f"{dir_twitter_scripts}/tweet_export_csv.py",
                     src, dest, countries])
 
 def export_sql(**kwargs):
@@ -59,11 +64,11 @@ def export_sql(**kwargs):
 
     if forecast_date:
         subprocess.run(["python",
-                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        f"{dir_sql_scripts}/insert_into_forecast_table.py",
                         src, table, extract_date])
     else:
         subprocess.run(["python",
-                        "/mnt/d/bootcamp-covid/datapipeline/load_datawarehouse/insert_into_forecast_table.py",
+                        f"{dir_sql_scripts}/insert_into_forecast_table.py",
                         src, table]) 
 
 with DAG(dag_id          = "Twitter_dag",
@@ -76,8 +81,8 @@ with DAG(dag_id          = "Twitter_dag",
             task_id         = "twitter_export_csv",
             python_callable = export_csv,
             op_args         = [],
-            op_kwargs       = {"src": "/mnt/d/bootcamp-covid/datalake/silver/twitter/sentiment_analysis",
-                               "dest": "/mnt/d/bootcamp-covid/datalake/gold/twitter/sentiment_analysis",
+            op_kwargs       = {"src": f"{dir_datalake}/silver/twitter/sentiment_analysis",
+                               "dest":  f"{dir_datalake}/gold/twitter/sentiment_analysis",
                                "countries": ",".join(countries)}
         )
 
@@ -85,7 +90,7 @@ with DAG(dag_id          = "Twitter_dag",
             task_id         = "twitter_export_sql",
             python_callable = export_sql,
             op_args         = [],
-            op_kwargs       = {"src":  "/mnt/d/bootcamp-covid/datalake/gold/twitter/sentiment_analysis",
+            op_kwargs       = {"src":   f"{dir_datalake}/gold/twitter/sentiment_analysis",
                                "extract_date": datetime.strftime(START_DATE, '%Y-%m-%d'),
                                "table": "SENTIMENTOS"}
         )
@@ -126,7 +131,7 @@ with DAG(dag_id          = "Twitter_dag",
             op_kwargs       = {"src": BASE_FOLDER.format(stage      = "silver",
                                                          country    = country,
                                                          partition  = "tweet_processed"),
-                               "dest": f"/mnt/d/bootcamp-covid/datalake/silver/twitter/sentiment_analysis/{country}",
+                               "dest":  f"{dir_datalake}/silver/twitter/sentiment_analysis/{country}",
                                "process_date": datetime.strftime(START_DATE , '%Y-%m-%d')}
         )
 
