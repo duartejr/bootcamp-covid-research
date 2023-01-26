@@ -148,7 +148,7 @@ def export_fcst_sql(**kwargs):
 # Implementation of a DAG to control the ETL process of COVID data.
 with DAG(dag_id            = "Covid_dag", # DAG name for the Airflow control panel
          default_args      = ARGS,        # Setting the default args
-         schedule_interval ='0 21 * * *', # Schedule the DAG to run every day at 21 hours
+         schedule_interval ='0 21 * * *', # Schedule the DAG to run every day at 9PM
          max_active_runs   = 1) as dag:   
     
     # Task to download the COVID data provided by Jhons Hopkins.
