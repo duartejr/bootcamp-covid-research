@@ -59,7 +59,7 @@ def fill_table(src: str, table: str, sql_query: str, process_date=None, base_fol
             cursor.execute("SELECT database();") # Select the database(datawarehouse)
             record = cursor.fetchone()
             
-            # If no rocess_date is specified, all existing data in the table
+            # If no process_date is specified, all existing data in the table
             # will be deleted before inserting the new data.
             if not process_date:
                 sql = f"DELETE FROM datawarehouse.{table};"

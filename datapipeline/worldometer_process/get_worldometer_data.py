@@ -1,22 +1,24 @@
-# import libraries
-# ================
-
-from datetime import datetime
+# insert_into_datawarehouse - Script to insert data into the data warehouse.
+#
+# Author: Duarte Junior <duarte.jr105@gmail.com>
+# Based in this work: https://github.com/imdevskp/covid_19_jhu_data_web_scrap_and_cleaning
+#
+# Licensed to GNU General Public License under a Contributor Agreement.
 import os
-import re
-from glob import glob
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
-import re
-import numpy as np
-from datetime import datetime
 import sys
+import requests
+import numpy as np
+import pandas as pd
+from glob import glob
+from datetime import datetime
+from bs4 import BeautifulSoup
+from datetime import datetime
 
-countries = {'Argentina': 1, 'Chile': 2, 'Ecuador': 3, "Spain": 4, "Mexico": 5}
-execute_date = datetime.strftime(datetime.today(), "%Y-%m-%d")
+# Control variables
+COUNTRIES = {'Argentina': 1, 'Chile': 2, 'Ecuador': 3, "Spain": 4, "Mexico": 5}
+EXCECUTE_DATE = datetime.strftime(datetime.today(), "%Y-%m-%d")
 
-
+# This part of the script is based in the work of Devakumar kp @imdevskp
 def get_data(dest):
     # get data
     # ========
@@ -87,20 +89,22 @@ def get_data(dest):
 
     # drop unwanted columns
     df_bs = df_bs.drop('#', axis=1)
-    df_bs = df_bs.drop(['Continent', '1 Caseevery X ppl',
-                       '1 Deathevery X ppl', '1 Testevery X ppl'], axis=1)
+    df_bs = df_bs.drop(['Continent', '1 Caseevery X ppl', '1 Deathevery X ppl',
+                        '1 Testevery X ppl'], axis=1)
 
     # rename columns
-    df_bs.columns = ['Country', 'TotalCases', 'NewCases', 'TotalDeaths', 'NewDeaths',
-           'TotalRecovered', 'NewRecovered', 'ActiveCases', 'Serious,Critical',
-           'Tot Cases/1M pop', 'Deaths/1M pop', 'TotalTests', 'Tests/1M pop',
-           'Population']
+    df_bs.columns = ['Country', 'TotalCases', 'NewCases', 'TotalDeaths',
+                     'NewDeaths', 'TotalRecovered', 'NewRecovered', 'ActiveCases',
+                     'Serious,Critical', 'Tot Cases/1M pop', 'Deaths/1M pop',
+                     'TotalTests', 'Tests/1M pop', 'Population']
 
-    df_bs['Date'] = execute_date
+    df_bs['Date'] = EXCECUTE_DATE
+    
     # # rearrange and subselect columns
-    df_bs = df_bs[['Country', 'Date', 'Population', 'TotalCases', 'NewCases', 'TotalDeaths', 'NewDeaths',
-           'TotalRecovered', 'NewRecovered', 'ActiveCases', 'Serious,Critical',
-           'Tot Cases/1M pop', 'Deaths/1M pop', 'TotalTests', 'Tests/1M pop']]
+    df_bs = df_bs[['Country', 'Date', 'Population', 'TotalCases', 'NewCases',
+                   'TotalDeaths', 'NewDeaths', 'TotalRecovered', 'NewRecovered',
+                   'ActiveCases', 'Serious,Critical', 'Tot Cases/1M pop',
+                   'Deaths/1M pop', 'TotalTests', 'Tests/1M pop']]
 
     # # fix data
     for col in df_bs.columns[2:]:
@@ -116,39 +120,53 @@ def get_data(dest):
 
     if not os.path.exists(dest):
         os.makedirs(dest)
-    print(df_bs.head())
-    print('trato_feito')
-    df_bs.to_csv(f'{dest}/worldometer_data_{execute_date}.csv', index=False)
+    
+    df_bs.to_csv(f'{dest}/worldometer_data_{EXCECUTE_DATE}.csv', index=False)
 
 
-def export_csv(src, dest):
-    files = glob(f'{src}/*.csv')
+def export_csv(src: str, dest: str):
+    """
+    Export the woldometer data into CSV format.
 
+    Args:
+        src (str): Source folder with the data.
+        dest (str): Destination folder with the data.
+    """
+    files = glob(f'{src}/*.csv') # List all CSV files in the source folder 
+
+    # If the destination folder does not exist creates a new one.
     if not os.path.exists(dest):
         os.makedirs(dest)
 
+    # Loop to interate in each file
     for i, file in enumerate(files):
+        # if is the first file
         if i == 0:
-            df = pd.read_csv(file)
-            df = df[df["Country"].isin(countries.keys())]
+            df = pd.read_csv(file) # read the data
+            df = df[df["Country"].isin(COUNTRIES.keys())] # initialize the dataframe
+        # In other case
         else:
-            df_i = pd.read_csv(file)
-            df_i = df_i[df_i["Country"].isin(countries.keys())]
-            df = pd.concat([df, df_i])
+            df_i = pd.read_csv(file) # read the data
+            df_i = df_i[df_i["Country"].isin(COUNTRIES.keys())] # select data of specific countries
+            df = pd.concat([df, df_i]) # concat the new data with the old data
     
-    df['Country'] = df['Country'].replace(countries)
-    df = df.fillna(0)
-    df = df.drop_duplicates()
+    df['Country'] = df['Country'].replace(COUNTRIES) # rename countries names
+    df = df.fillna(0) # Fill nan values with zeros
+    df = df.drop_duplicates() # Remove duplicated rows
+    
+    # Calculates the mortality ratio.
     df['Mortality'] = df['TotalDeaths'] / df['Population']
+    
+    # Export the data into CSV format.
     df.to_csv(f'{dest}/worldometer_data.csv', index=False)
 
 
 if __name__ == "__main__":
-    src = sys.argv[1]
-    dest = sys.argv[2]
-    op = sys.argv[3]
+    src  = sys.argv[1] # Gets source folder
+    dest = sys.argv[2] # Gets destination folder
+    op   = sys.argv[3] # Get the operation. get to collect data or export to export data
 
-    if op == "get":
+    if op == "get": # If the operation is get it collect the data
         get_data(dest)
-    if op == 'export':
+    if op == 'export': # If the operation is export it export the data
         export_csv(src, dest)
