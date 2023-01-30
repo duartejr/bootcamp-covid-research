@@ -1,4 +1,4 @@
-# convert_json2csv.py - Script transform JSON files into CSV files.
+# convert_json2csv.py - Script to transform JSON files into CSV files.
 #
 # Author: Duarte Junior <duarte.jr105@gmail.com>
 #
