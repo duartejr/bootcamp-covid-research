@@ -5,9 +5,9 @@
 # Licensed to GNU General Public License under a Contributor Agreement.
 import sys
 import pandas as pd
-from airflow.models import Variable
 import mysql.connector as mysql
 from mysql.connector import Error
+from airflow.models import Variable
 
 # Control variables
 DATABASE_USER = Variable.get("database_user")
@@ -129,7 +129,7 @@ def execute(src: str, table: str, process_date=None):
         base_folder = 'worldometer'
     
     # Run the function to insert the data into the datawarehouse
-    fill_table(src, table, sql_query, forecast_date, base_folder)
+    fill_table(src, table, sql_query, process_date, base_folder)
 
 
 if __name__ == "__main__":
