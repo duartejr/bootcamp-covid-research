@@ -1,6 +1,6 @@
 # Bootcamp COVID
 
-## Status: Em Andamento
+## Status: Concluído
 
 ## Introdução
 
